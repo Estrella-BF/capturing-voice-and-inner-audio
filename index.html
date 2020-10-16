@@ -1,0 +1,170 @@
+<!DOCTYPE html> 
+<html> 
+  
+<head> 
+  <script> 
+   function getConnectedDevices(type, callback) {
+      navigator.mediaDevices.enumerateDevices()
+          .then(devices => {
+              const filtered = devices.filter(device => device.kind === type);
+              callback(filtered);
+          });
+  }
+  function updateInputDevices(input) {
+    const listElement = document.querySelector('select#microphone');
+    listElement.innerHTML = '';
+    const options = input.map(device => {
+        const inputOption = document.createElement('option');
+        inputOption.text = device.label;
+        inputOption.value = device.deviceId;
+        return inputOption;
+    });
+
+    options.forEach((option, index) =>
+     listElement.add(option, listElement.options[index])
+     );
+  }
+
+  function updateOuputDevices(input) {
+    const listElement = document.querySelector('select#speaker');
+    listElement.innerHTML = '';
+    const options = input.map(device => {
+        const speakerOption = document.createElement('option');
+        speakerOption.text = device.label;
+        speakerOption.value = device.deviceId;
+        return speakerOption;
+    });
+
+    options.forEach((option, index) =>
+     listElement.add(option, listElement.options[index])
+     );
+  }
+
+  function startRecord(deviceId = undefined){
+    const constrain = deviceId ? {audio:{deviceId: deviceId}} : { audio: true } ;
+
+    navigator.mediaDevices.getUserMedia(constrain) 
+      .then(function (mediaStreamObj) { 
+        getConnectedDevices('audioinput', updateInputDevices);
+        getConnectedDevices('audiooutput', updateOuputDevices);
+        let audio = document.querySelector('#record'); 
+        let audiomp3 = document.querySelector('#audiomp3'); 
+
+        var audioStream = audiomp3.captureStream();
+        let combined = new MediaStream([...mediaStreamObj.getTracks(), ...audioStream.getTracks()]);
+        let recorder = undefined;
+
+        if ("srcObject" in audio) { 
+          audio.srcObject = combined; 
+        } 
+        else {  
+          audio.src = window.URL 
+            .createObjectURL(combined); 
+        } 
+        audio.onloadedmetadata = function (ev) { 
+          audio.play(); 
+        }; 
+  
+        let start = document.getElementById('btnStart'); 
+
+        let stop = document.getElementById('btnStop'); 
+
+        let playAudio = document.getElementById('adioPlay'); 
+  
+        let mediaRecorder = new MediaRecorder(combined); 
+      
+        start.addEventListener('click', function (ev) { 
+          mediaRecorder.start(); 
+        }) 
+  
+        stop.addEventListener('click', function (ev) { 
+          mediaRecorder.stop();
+          recorder.stop(); 
+        }); 
+  
+        let audioRobot = document.querySelector('#record'); 
+        mediaRecorder.ondataavailable = function (ev) { 
+          dataArray.push(ev.data); 
+        } 
+
+        let dataArray = []; 
+
+        audiomp3.addEventListener("ended", function(){
+             recorder.stop(); 
+        });
+
+        audiomp3.play().then(()=>{
+          console.log('Play audiomp3')
+          const stream = audiomp3.captureStream();
+          recorder = new MediaRecorder(stream);
+          recorder.start(); 
+          recorder.ondataavailable = function(event){
+             dataArray.push(event.data); 
+          }
+        });
+
+        mediaRecorder.onstop = function (ev) { 
+          let audioData = new Blob(dataArray,  
+                    { 'type': 'audio/webm;' }); 
+          dataArray = []; 
+
+          let audioSrc = window.URL 
+              .createObjectURL(audioData); 
+          playAudio.src = audioSrc; 
+        } 
+      }) 
+      .catch(function (err) { 
+        console.log(err.name, err.message); 
+      }); 
+    }
+
+    navigator.mediaDevices.ondevicechange = function(event) {
+      startRecord();
+    }
+  startRecord();
+
+  function onChange() {
+  var x = document.getElementById("microphone").value;
+  console.log(x);
+  startRecord(x);
+}
+  </script> 
+</head> 
+  
+<body style="background-color:white; text-align: center;"> 
+  <audio width="200" controls="true" id="audiomp3" crossOrigin="anonymous">
+    <source  type="audio/mp3" src="http://www.vocesdecine.com/Muestra/contestadores/JB_CONTESTADOR_2.mp3">
+  </audio>
+  <header> 
+    <h1>Record and Play Audio in JavaScript</h1> 
+  </header> 
+  <!--button for 'start recording'--> 
+  <p> 
+    <button id="btnStart">START RECORDING</button> 
+                
+    <button id="btnStop">STOP RECORDING</button> 
+    <!--button for 'stop recording'--> 
+  </p> 
+  
+  <!--for record--> 
+  <audio id="record"controls></audio> 
+  <!--'controls' use for add  
+    play, pause, and volume--> 
+  
+  <!--for play the audio--> 
+  <audio id="adioPlay" controls></audio> 
+  <div id="devices">
+    <h2>Speakers</h2>
+    <select id="speaker">
+      <option>default</option>
+    </select>
+    <h2>Microphones</h2>
+    <select id="microphone" onchange="onChange()">
+      <option>default</option>
+    </select>
+
+    
+  </div>
+</body> 
+  
+</html> 
